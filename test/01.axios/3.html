@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+    <button id="btn1">按钮1</button>
+    <button id="btn2">按钮2</button>
+    <button id="btn3">按钮3</button>
+    <script src="https://cdn.bootcss.com/axios/0.19.0/axios.min.js"></script>
+    <script>
+        const btn1 = document.getElementById('btn1')
+        const btn2 = document.getElementById('btn2')
+        const btn3 = document.getElementById('btn3')
+        
+        let token = '';
+        const axiosInstance = axios.create({
+            beseURL: 'http://localhost:5000/api',
+            timeout:1000, //超时中断
+            headers:{
+                //能写死的公共请求参数，活动的不写
+            }
+        });
+        // 拦截器
+        axiosInstance.interceptors.request.use(
+            (config) => {
+              if(config.method === 'post'){
+                  config.headers['content-type'] = 'application/x-www-form-urlencoded';
+                  config.data = Object.keys(config.data).reduce((prev,key) => {
+                    const value = config.data[key];
+                    return prev + `&${key}=${value}`;
+                  },'').substring(1)
+              }
+              if(token) {
+                  config.headers.authorization ='Bearer' + token;
+              }
+              
+              return config;
+
+            },
+            (error) => {
+                return Promise.reject(error);
+            }
+        )
+        axiosInstance.interceptors.request.use(
+            (response) => {
+                if (response.data.status === 0){
+                    return response.data.data;
+                }else{
+                    alert(response.data.msg)
+                    return Promise.reject();
+                }
+            },
+            (error) => {
+                const codeMessage = {
+                    401: '没有权限访问接口',
+                    403: '禁止访问',
+                    404: '资源不存在',
+                    500: '故障'
+                }
+
+                let errorMessage = '';
+
+                if (error.response){
+                    errorMessage = codeMessage[error.response.status] || '未知错误';
+                }else{
+                    if(error.message.indexOf('Network Error') !== -1){
+                        errorMessage = '没网';
+                    }else if(error.message.indexOf('timeout') !== -1){
+                        errorMessage = '超时，请检查网络';
+                    }else{
+                        errorMessage = '未知错误';
+                    }
+                }
+                // console.dir(error);
+                alert(errorMessage);
+                return Promise.reject(errorMessage);
+            }
+        )
+
+        const reqLogin = (username,password) => {
+            axiosInstance({
+               method:'POST',
+               url: '/login',
+               data: {
+                   username,
+                   password
+               }, 
+            })
+        }
+        const reqGetCategories = () => {
+            return axiosInstance({
+                method: 'GET',
+                url:'/category/get',
+            })
+        }
+        const reqAddCategory = (categoryName) => {
+            return axiosInstance({
+               method:'POST',
+               url: '/category/add',
+            data: {
+                categoryName
+            },
+        })
+        }
+
+
+
+
+
+        btn1.onclick = function () {
+            // 在axios中默认post请求的content-type是application.json
+            // 但是，有可能公司要求content-type用application/x-www-form-urlencoded
+            reqLogin = ('admin','admin')
+            .then((response) => {
+                    console.log(response);
+                    token = response.token;
+            })
+            .catch((error) => {
+                alert(error);
+            })
+        }
+        
+        btn2.onclick = function () {
+            reqGetCategories()
+            .then((response) => {
+                    console.log(response);
+            })
+            .catch((error) =>{
+                alert(error);
+            })
+        }
+    
+        btn3.onclick = function () {
+            reqAddCategory('tudou')
+            .then((response) => {
+                    console.log(response);
+            })
+            .catch((error) => {
+                alert(error);
+            })
+        }
+    
+
+    </script>
+</body>
+</html>
